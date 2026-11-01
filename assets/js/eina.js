@@ -80,15 +80,15 @@
     }, { threshold: .6 }).observe(el);
   });
 
-  /* capa: ao rolar, o nome desce mais devagar que a foto e a cabeça dela "passa" pelo título (profundidade
-     sem mexer no tamanho da foto). Só no desktop e sem "reduzir movimento". */
-  const nomeIn = $('.hero-nome-in'), fotoHero = $('.hero-foto img');
-  if (hero && nomeIn && !reduz && !toque) {
+  /* topo: ao rolar, o título e os ecos descem mais devagar que a foto (profundidade sem mexer no tamanho dela).
+     Só no desktop e sem "reduzir movimento". */
+  const titulo = $('.hero-titulo'), ecos = $('.hero-ecos'), fotoHero = $('.hero-foto-in');
+  if (hero && titulo && !reduz && !toque) {
     let pedido = false;
     const mexe = () => {
       pedido = false;
-      const y = Math.min(scrollY, hero.offsetHeight);
-      nomeIn.style.transform = `translate3d(0, ${(y * .32).toFixed(1)}px, 0)`;
+      const y = Math.min(scrollY, hero.offsetHeight), t = `translate3d(0, ${(y * .32).toFixed(1)}px, 0)`;
+      titulo.style.transform = t; ecos.style.transform = t;
       fotoHero.style.transform = `translate3d(0, ${(y * .1).toFixed(1)}px, 0)`;
     };
     addEventListener('scroll', () => { if (!pedido && scrollY < hero.offsetHeight * 1.2) { pedido = true; requestAnimationFrame(mexe); } }, { passive: true });

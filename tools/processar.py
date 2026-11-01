@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 RAIZ = Path(__file__).resolve().parent.parent
 REF = RAIZ.parent / "_ref"
@@ -79,11 +79,13 @@ def fotos():
             # a foto menor que 1080 sai com o nome -1080 na largura dela, para o srcset nunca quebrar
             out = im if im.width <= L else im.resize((L, round(L / im.width * im.height)), Image.LANCZOS)
             out.save(IMG / f"{nome}-{L}.webp", quality=82, method=6)
-    # topo: Eina de camisa listrada recortada (rembg, birefnet-portrait, em ../_ref/recorte), com alfa. O recorte
-    # não toca as laterais nem o alto da foto, então ela fica inteira no centro, só cortada embaixo
-    rec = Image.open(REF / "recorte" / "012_1-birefnet-portrait.png").convert("RGBA").crop((110, 24, 1115, 1801))
-    for L in (640, 1005):
-        rec.resize((L, round(L / rec.width * rec.height)), Image.LANCZOS).save(IMG / f"hero-recorte-{L}.webp", quality=88, method=6)
+    # topo: Eina de blusa de oncinha, recortada (rembg, birefnet-portrait) do próprio post rosa dela (056, mar/2025).
+    # O corte para logo abaixo das mãos, antes do selo "@einasantoc" do post; centrado no corpo dela
+    rec = Image.open(REF / "recorte" / "056_0-birefnet-portrait.png").convert("RGBA").crop((165, 345, 845, 1215))
+    # a borda do recorte vem 2 px para dentro e suavizada, senão sobra um contorno claro do fundo do post
+    rec.putalpha(rec.getchannel("A").filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(.7)))
+    for L in (480, 680):
+        rec.resize((L, round(L / rec.width * rec.height)), Image.LANCZOS).save(IMG / f"hero-eina-{L}.webp", quality=90, method=6)
     for capa in sorted((REF / "yt").glob("*.jpg")):
         im = Image.open(capa).convert("RGB")
         im.resize((640, 360), Image.LANCZOS).save(IMG / f"yt-{capa.stem}.webp", quality=80, method=6)
