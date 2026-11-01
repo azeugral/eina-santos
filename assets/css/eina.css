@@ -292,6 +292,12 @@ ol, ul { padding: 0; list-style: none; }
   .numero:nth-child(n+3) { border-top: 1px solid rgba(34, 33, 37, .14); }
 }
 
+@media (min-width: 821px) and (max-width: 1100px) {
+  .hero-foto { width: 44vw; right: 0; }
+  .hero-txt { max-width: 54vw; }
+  .hero-nome { font-size: clamp(3.4rem, 8vw, 5.6rem); }
+}
+
 /* celular: a foto ocupa o alto e o texto entra embaixo */
 @media (max-width: 820px) {
   .hero { flex-direction: column; }
