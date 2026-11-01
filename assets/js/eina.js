@@ -1,4 +1,4 @@
-/* Eina Santos: topo, menu, entradas, fios de prata, comparador, manifesto, vídeos com fala, galeria. */
+/* Eina Santos: topo, menu, entradas, capa com profundidade, manifesto, vídeos com fala, galeria. */
 (function () {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -7,13 +7,15 @@
 
   const ano = $('#ano'); if (ano) ano.textContent = new Date().getFullYear();
 
-  /* entrada do topo depois das fontes (ou 1,2 s, o que vier antes) */
+  /* entrada do topo depois das fontes e da foto (ou 1,4 s, o que vier antes) */
   const hero = $('.hero');
   if (hero) {
     let foi = false;
     const entrar = () => { if (foi) return; foi = true; requestAnimationFrame(() => hero.classList.add('entrou')); };
-    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(entrar);
-    setTimeout(entrar, 1200);
+    const img = $('.hero-foto img');
+    const foto = img && !img.complete ? new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }) : Promise.resolve();
+    Promise.all([document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve(), foto]).then(entrar);
+    setTimeout(entrar, 1400);
   }
 
   /* topo: sólido ao rolar, some ao descer e volta ao subir */
@@ -78,100 +80,19 @@
     }, { threshold: .6 }).observe(el);
   });
 
-  /* fios de prata (assets/js/fios.js): ao vivo em WebGL no desktop; em telas de toque, o MP4 do mesmo
-     shader. Só anima quando está na tela; com "reduzir movimento" fica um quadro parado. */
-  $$('[data-fios]').forEach(box => {
-    const cv = $('canvas', box), vid = $('video', box), tema = +box.dataset.tema;
-    const ver = cb => 'IntersectionObserver' in window
-      ? new IntersectionObserver(([e]) => cb(e.isIntersecting), { rootMargin: '200px 0px' }).observe(box)
-      : cb(true);
-    if (toque) {
-      box.classList.add('em-video');
-      vid.poster = box.dataset.poster;
-      ver(dentro => {
-        if (dentro) {
-          if (!vid.src) {
-            vid.src = box.dataset.v;
-            vid.addEventListener('loadeddata', () => box.classList.add('viva'), { once: true });
-          }
-          if (!reduz) { const p = vid.play(); if (p && p.catch) p.catch(() => {}); }
-        } else vid.pause();
-      });
-      return;
-    }
-    if (!window.prataGL) return;
-    let G = null;
-    try { G = prataGL(cv); } catch (e) { G = null; }
-    if (!G) return;
-    cv.addEventListener('webglcontextlost', e => { e.preventDefault(); box.classList.remove('viva'); G = null; });
-    const CICLO = 30000;
-    let esc = Math.min(devicePixelRatio || 1, 2) * .75, fase = 1.2;
-    const ajusta = () => {
-      if (!G) return;
-      cv.width = Math.max(2, Math.round(box.clientWidth * esc)); cv.height = Math.max(2, Math.round(box.clientHeight * esc));
-      G.desenhar(fase, 0, tema);
+  /* capa: ao rolar, o nome desce mais devagar que a foto e a cabeça dela "passa" pelo título (profundidade
+     sem mexer no tamanho da foto). Só no desktop e sem "reduzir movimento". */
+  const nomeIn = $('.hero-nome-in'), fotoHero = $('.hero-foto img');
+  if (hero && nomeIn && !reduz && !toque) {
+    let pedido = false;
+    const mexe = () => {
+      pedido = false;
+      const y = Math.min(scrollY, hero.offsetHeight);
+      nomeIn.style.transform = `translate3d(0, ${(y * .32).toFixed(1)}px, 0)`;
+      fotoHero.style.transform = `translate3d(0, ${(y * .1).toFixed(1)}px, 0)`;
     };
-    ajusta(); addEventListener('resize', ajusta);
-    if (reduz) { box.classList.add('viva'); return; }
-    let ve = false, ult = 0, soma = 0, n = 0;
-    const t0 = performance.now();
-    const quadro = t => {
-      if (!G) return;
-      requestAnimationFrame(quadro);
-      if (!ve || document.hidden) { ult = 0; return; }
-      if (ult) { soma += t - ult; n++; }
-      ult = t;
-      if (n === 40) { if (soma / n > 22 && esc > .4) { esc *= .8; ajusta(); } soma = 0; n = 0; }
-      fase = ((t - t0) % CICLO) / CICLO * 6.283185307179586;
-      G.desenhar(fase, 0, tema);
-      box.classList.add('viva');
-    };
-    ver(dentro => { ve = dentro; ult = 0; });
-    requestAnimationFrame(quadro);
-  });
-
-  /* comparador 2018 x 2025 */
-  const comp = $('#comparar');
-  if (comp) {
-    const r = $('input', comp);
-    const pinta = v => comp.style.setProperty('--x', v + '%');
-    r.addEventListener('input', () => pinta(r.value));
-    /* no toque, arrastar na foto mexe o divisor sem travar a rolagem vertical */
-    let x0 = null, y0 = null, arrastando = false;
-    comp.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; arrastando = false; }, { passive: true });
-    comp.addEventListener('touchmove', e => {
-      if (x0 === null) return;
-      const t = e.touches[0];
-      if (!arrastando && Math.abs(t.clientX - x0) > Math.abs(t.clientY - y0) + 4) arrastando = true;
-      if (arrastando) {
-        const b = comp.getBoundingClientRect();
-        const v = Math.min(100, Math.max(0, (t.clientX - b.left) / b.width * 100));
-        r.value = v; pinta(v);
-      }
-    }, { passive: true });
-    comp.addEventListener('touchend', () => { x0 = null; });
-    /* uma dica de movimento na primeira vez que aparece */
-    if (!reduz && 'IntersectionObserver' in window) {
-      new IntersectionObserver(([e], o) => {
-        if (!e.isIntersecting) return; o.disconnect();
-        const t0 = performance.now();
-        const passo = t => {
-          const k = Math.min(1, (t - t0) / 1600);
-          const v = 50 + Math.sin(k * Math.PI * 2) * 14 * (1 - k);
-          r.value = v; pinta(v);
-          if (k < 1) requestAnimationFrame(passo);
-        };
-        setTimeout(() => requestAnimationFrame(passo), 500);
-      }, { threshold: .6 }).observe(comp);
-    }
+    addEventListener('scroll', () => { if (!pedido && scrollY < hero.offsetHeight * 1.2) { pedido = true; requestAnimationFrame(mexe); } }, { passive: true });
   }
-
-  /* trilho dos anos */
-  const trilho = $('#trilho-anos');
-  $$('[data-trilho]').forEach(b => b.addEventListener('click', () => {
-    const f = $('figure', trilho); const passo = f ? f.getBoundingClientRect().width + 16 : 300;
-    trilho.scrollBy({ left: passo * +b.dataset.trilho, behavior: reduz ? 'auto' : 'smooth' });
-  }));
 
   /* manifesto: as palavras acendem conforme a frase sobe na tela */
   const man = $('[data-palavras]');
